@@ -6,4 +6,4 @@
 4. dotnet build
 5. dotnet publish -c Release -o "folder-save-build"
 6. cd "folder-save-build"
-7. dotnet update-stocks
+7. dotnet update-stocks.dll
