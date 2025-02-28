@@ -77,7 +77,7 @@ class Program
                 {
                     string lastLine = tickerRecords[ticker].Last();
                     string[] parts = lastLine.Split(' ');
-                    DateTime.TryParseExact(parts[1], "dd/MM/yyyy", null,
+                    DateTime.TryParseExact(parts[1], "yyyy-MM-dd", null,
                         System.Globalization.DateTimeStyles.None, out DateTime lastDate);
                     startDate = lastDate.AddDays(1);
                 }
@@ -93,7 +93,7 @@ class Program
                 var records = await yahooService.GetRecordsAsync(ticker, startDate);
                 foreach (var record in records)
                 {
-                    string ledgerEntry = $"P {record.Date:dd/MM/yyyy} {ticker} {record.Close.Value.ToString("n2").Replace(".", ",")} USD";
+                    string ledgerEntry = $"P {record.Date:yyyy-MM-dd} {ticker} {record.Close.Value.ToString("n2").Replace(".", ",")} USD";
                     tickerRecords[ticker].Add(ledgerEntry);
                     Console.WriteLine($"{ledgerEntry}");
                 }
@@ -112,8 +112,8 @@ class Program
                     {
                         string dateA = a.Split(' ')[1];
                         string dateB = b.Split(' ')[1];
-                        return DateTime.ParseExact(dateA, "dd/MM/yyyy", null)
-                            .CompareTo(DateTime.ParseExact(dateB, "dd/MM/yyyy", null));
+                        return DateTime.ParseExact(dateA, "yyyy-MM-dd", null)
+                            .CompareTo(DateTime.ParseExact(dateB, "yyyy-MM-dd", null));
                     });
 
                     foreach (var record in records)
