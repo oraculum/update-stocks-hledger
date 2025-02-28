@@ -13,11 +13,10 @@ class Program
 
         try
         {
-            // Lê os ticker symbols do arquivo meta.ledger
-            string ledgerFilePath = "../meta.ledger";
+            string ledgerFilePath = "/Users/damon/Library/Mobile Documents/com~apple~CloudDocs/ledger/meta.ledger";
             if (!File.Exists(ledgerFilePath))
             {
-                Console.WriteLine("Arquivo meta.ledger não encontrado!");
+                Console.WriteLine("File meta.ledger not found!");
                 return;
             }
 
@@ -28,7 +27,8 @@ class Program
                 if (line.Trim().StartsWith("commodity"))
                 {
                     string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 1)
+                    List<string> ignoreCommoditiesCurrency = new List<string>() { "USD", "BRL", "EUR" };
+                    if (parts.Length > 1 && !ignoreCommoditiesCurrency.Contains(parts[1]))
                     {
                         tickers.Add(parts[1].Trim());
                     }
@@ -37,17 +37,16 @@ class Program
 
             if (tickers.Count == 0)
             {
-                Console.WriteLine("Nenhum ticker encontrado no arquivo meta.ledger.");
+                Console.WriteLine("No tickers found in the meta.ledger file.");
                 return;
             }
 
-            // Arquivo de saída
-            string outputFilePath = "../market.prices.ledger.txt";
+            string outputFilePath = "/Users/damon/Library/Mobile Documents/com~apple~CloudDocs/ledger/market.prices.ledger";
 
-            // Dicionário para armazenar a última data de cada ativo
-            Dictionary<string, DateTime> lastDates = new Dictionary<string, DateTime>();
+            // Dictionary to store all records by ticker
+            Dictionary<string, List<string>> tickerRecords = new Dictionary<string, List<string>>();
 
-            // Lê as últimas datas do arquivo existente, se houver
+            // Read existing records
             if (File.Exists(outputFilePath))
             {
                 string[] existingLines = File.ReadAllLines(outputFilePath);
@@ -58,55 +57,80 @@ class Program
                     string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length >= 4 && parts[0] == "P")
                     {
-                        if (DateTime.TryParseExact(parts[1], "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime date))
+                        string ticker = parts[2];
+                        if (!tickerRecords.ContainsKey(ticker))
                         {
-                            string ticker = parts[2];
-                            if (!lastDates.ContainsKey(ticker) || date > lastDates[ticker])
-                            {
-                                lastDates[ticker] = date;
-                            }
+                            tickerRecords[ticker] = new List<string>();
                         }
+                        tickerRecords[ticker].Add(line);
                     }
                 }
             }
 
-            using (StreamWriter writer = new StreamWriter(outputFilePath, true)) // true para append
+            // Fetch and add new prices
+            foreach (string ticker in tickers)
             {
-                foreach (string ticker in tickers)
+                Console.WriteLine($"Fetching data for {ticker}...");
+
+                DateTime startDate;
+                if (tickerRecords.ContainsKey(ticker) && tickerRecords[ticker].Any())
                 {
-                    Console.WriteLine($"Buscando dados para {ticker}...");
-
-                    DateTime startDate;
-                    if (lastDates.ContainsKey(ticker))
+                    string lastLine = tickerRecords[ticker].Last();
+                    string[] parts = lastLine.Split(' ');
+                    DateTime.TryParseExact(parts[1], "dd/MM/yyyy", null,
+                        System.Globalization.DateTimeStyles.None, out DateTime lastDate);
+                    startDate = lastDate.AddDays(1);
+                }
+                else
+                {
+                    startDate = DateTime.Now.AddDays(-30);
+                    if (!tickerRecords.ContainsKey(ticker))
                     {
-                        // Pega o dia seguinte à última data registrada
-                        startDate = lastDates[ticker].AddDays(1);
+                        tickerRecords[ticker] = new List<string>();
                     }
-                    else
-                    {
-                        // Se não houver data anterior, pega os últimos 30 dias
-                        startDate = DateTime.Now.AddDays(-30);
-                    }
+                }
 
-                    var records = await yahooService.GetRecordsAsync(ticker, startDate);
+                var records = await yahooService.GetRecordsAsync(ticker, startDate);
+                foreach (var record in records)
+                {
+                    string ledgerEntry = $"P {record.Date:dd/MM/yyyy} {ticker} {record.Close.Value.ToString("n2").Replace(".", ",")} USD";
+                    tickerRecords[ticker].Add(ledgerEntry);
+                    Console.WriteLine($"{ledgerEntry}");
+                }
+
+                await Task.Delay(1000);
+            }
+
+            // Sort records for each ticker by date and rewrite the file
+            using (StreamWriter writer = new StreamWriter(outputFilePath, false)) // false to overwrite
+            {
+                foreach (var ticker in tickerRecords.Keys.OrderBy(k => k))
+                {
+                    var records = tickerRecords[ticker];
+                    // Sort by date
+                    records.Sort((a, b) =>
+                    {
+                        string dateA = a.Split(' ')[1];
+                        string dateB = b.Split(' ')[1];
+                        return DateTime.ParseExact(dateA, "dd/MM/yyyy", null)
+                            .CompareTo(DateTime.ParseExact(dateB, "dd/MM/yyyy", null));
+                    });
+
                     foreach (var record in records)
                     {
-                        string ledgerEntry = $"P {record.Date:dd/MM/yyyy} {ticker} {record.Close.Value.ToString("n2").Replace(".", ",")} USD";
-                        await writer.WriteLineAsync(ledgerEntry);
-                        Console.WriteLine($"Preço salvo: {ledgerEntry}");
+                        await writer.WriteLineAsync(record);
                     }
-
-                    await Task.Delay(1000);
+                    await writer.WriteLineAsync(); // Blank line between tickers
                 }
             }
 
-            Console.WriteLine($"\nPreços salvos em {outputFilePath}");
+            Console.WriteLine($"\nPrices saved to {outputFilePath}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ocorreu um erro: {ex.Message}");
+            Console.WriteLine($"An error occurred: {ex.Message}");
         }
 
-        Console.WriteLine("\nProcesso finalizado...");
+        Console.WriteLine("\nProcess completed...");
     }
 }
