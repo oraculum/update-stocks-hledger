@@ -1,0 +1,5 @@
+{
+    "ledgerFilePath": "/Users/damon/workspace/update-stocks-hledger/meta.ledger",
+    "outputFilePath": "/Users/damon/workspace/update-stocks-hledger/market.prices.ledger",
+    "currencyFilePath": "/Users/damon/workspace/update-stocks-hledger/currecncy.prices.ledger"
+}

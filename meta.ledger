@@ -1,4 +1,15 @@
 commodity JNJ
+commodity BRL
+  type: currency
+  codes: [USD:BRL=X,EUR:EURBRL=X]
+  format 1.000,00 BRL
+commodity EUR
+  format 1.000,00 EUR
+  type: currency
+commodity USD
+  format 1.000,00 USD
+  type: currency
+  codes: [EUR:EUR=X]
+
 commodity NSC
-commodity V
 commodity ARCC
